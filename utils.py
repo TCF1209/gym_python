@@ -84,7 +84,7 @@ AUDIT_LOG_FILE = os.path.join(DATA_DIR, "audit.log")
 
 # --- UI formatting ---
 MENU_WIDTH = 44
-BAR_CHAR = "\u2588"          # full-block; change to "#" if a console can't render it
+BAR_CHAR = "█"          # full-block; change to "#" if a console can't render it
 BAR_WIDTH_DEFAULT = 30
 DATE_FORMAT = "%Y-%m-%d"
 TIME_FORMAT = "%H:%M"
@@ -112,7 +112,7 @@ def ensure_dir(path):
         try:
             os.makedirs(path)
         except Exception as e:
-            print("\u26a0\ufe0f  Error creating directory '" + path + "': " + str(e))
+            print(f"⚠️  Error creating directory '{path}': {e}")
 
 
 def ensure_data_dir():
@@ -159,7 +159,7 @@ def read_members():
         # First run: file will be created when the first member is written.
         pass
     except Exception as e:
-        print("\u26a0\ufe0f  Error reading members: " + str(e))
+        print(f"⚠️  Error reading members: {e}")
     return members
 
 
@@ -174,9 +174,9 @@ def write_members(members):
                     m["phone"], m["email"], m["tier"],
                     m["join_date"], m["expiry_date"], m["status"],
                 ])
-                f.write(line + "\n")
+                f.write(f"{line}\n")
     except Exception as e:
-        print("\u26a0\ufe0f  Error writing members: " + str(e))
+        print(f"⚠️  Error writing members: {e}")
 
 
 # ============================================================
@@ -210,7 +210,7 @@ def read_classes():
     except FileNotFoundError:
         pass
     except Exception as e:
-        print("\u26a0\ufe0f  Error reading classes: " + str(e))
+        print(f"⚠️  Error reading classes: {e}")
     return classes
 
 
@@ -226,9 +226,9 @@ def write_classes(classes):
                     str(c["duration_min"]), str(c["capacity"]),
                     str(c["current_booked"]), c["status"],
                 ])
-                f.write(line + "\n")
+                f.write(f"{line}\n")
     except Exception as e:
-        print("\u26a0\ufe0f  Error writing classes: " + str(e))
+        print(f"⚠️  Error writing classes: {e}")
 
 
 # ============================================================
@@ -260,7 +260,7 @@ def read_trainers():
     except FileNotFoundError:
         pass
     except Exception as e:
-        print("\u26a0\ufe0f  Error reading trainers: " + str(e))
+        print(f"⚠️  Error reading trainers: {e}")
     return trainers
 
 
@@ -275,9 +275,9 @@ def write_trainers(trainers):
                     t["phone"], t["email"],
                     str(t["experience_years"]), t["status"],
                 ])
-                f.write(line + "\n")
+                f.write(f"{line}\n")
     except Exception as e:
-        print("\u26a0\ufe0f  Error writing trainers: " + str(e))
+        print(f"⚠️  Error writing trainers: {e}")
 
 
 # ============================================================
@@ -309,7 +309,7 @@ def read_bookings():
     except FileNotFoundError:
         pass
     except Exception as e:
-        print("\u26a0\ufe0f  Error reading bookings: " + str(e))
+        print(f"⚠️  Error reading bookings: {e}")
     return bookings
 
 
@@ -324,9 +324,9 @@ def write_bookings(bookings):
                     b["booking_date"], b["class_date"],
                     b["status"], format_amount(b["penalty_rm"]),
                 ])
-                f.write(line + "\n")
+                f.write(f"{line}\n")
     except Exception as e:
-        print("\u26a0\ufe0f  Error writing bookings: " + str(e))
+        print(f"⚠️  Error writing bookings: {e}")
 
 
 # ============================================================
@@ -358,7 +358,7 @@ def read_payments():
     except FileNotFoundError:
         pass
     except Exception as e:
-        print("\u26a0\ufe0f  Error reading payments: " + str(e))
+        print(f"⚠️  Error reading payments: {e}")
     return payments
 
 
@@ -373,9 +373,9 @@ def write_payments(payments):
                     p["payment_type"], p["method"],
                     p["payment_date"], p["status"],
                 ])
-                f.write(line + "\n")
+                f.write(f"{line}\n")
     except Exception as e:
-        print("\u26a0\ufe0f  Error writing payments: " + str(e))
+        print(f"⚠️  Error writing payments: {e}")
 
 
 # ============================================================
@@ -405,7 +405,7 @@ def read_credentials():
     except FileNotFoundError:
         pass
     except Exception as e:
-        print("\u26a0\ufe0f  Error reading credentials: " + str(e))
+        print(f"⚠️  Error reading credentials: {e}")
     return creds
 
 
@@ -416,9 +416,9 @@ def write_credentials(creds):
         with open(CREDENTIALS_FILE, "w", encoding="utf-8") as f:
             for c in creds:
                 line = "|".join([c["username"], c["password"], c["role"]])
-                f.write(line + "\n")
+                f.write(f"{line}\n")
     except Exception as e:
-        print("\u26a0\ufe0f  Error writing credentials: " + str(e))
+        print(f"⚠️  Error writing credentials: {e}")
 
 
 # ============================================================
@@ -441,10 +441,10 @@ def log_audit(role, action, detail):
         timestamp = datetime.now().strftime(DATETIME_FORMAT)
         line = "|".join([timestamp, role, action, detail])
         with open(AUDIT_LOG_FILE, "a", encoding="utf-8") as f:
-            f.write(line + "\n")
+            f.write(f"{line}\n")
     except Exception as e:
         # Never let an audit-log failure break the user's action.
-        print("\u26a0\ufe0f  Error writing audit log: " + str(e))
+        print(f"⚠️  Error writing audit log: {e}")
 
 
 def read_audit_log():
@@ -469,7 +469,7 @@ def read_audit_log():
     except FileNotFoundError:
         pass
     except Exception as e:
-        print("\u26a0\ufe0f  Error reading audit log: " + str(e))
+        print(f"⚠️  Error reading audit log: {e}")
     return entries
 
 
@@ -484,7 +484,7 @@ def get_non_empty_string(prompt):
         value = input(prompt).strip()
         if value:
             return value
-        print("\u2717 Input cannot be empty. Please try again.")
+        print("✗ Input cannot be empty. Please try again.")
 
 
 def get_valid_int(prompt, min_val, max_val):
@@ -494,10 +494,10 @@ def get_valid_int(prompt, min_val, max_val):
         try:
             value = int(raw)
         except ValueError:
-            print("\u2717 Please enter a whole number.")
+            print("✗ Please enter a whole number.")
             continue
         if value < min_val or value > max_val:
-            print("\u2717 Value must be between " + str(min_val) + " and " + str(max_val) + ".")
+            print(f"✗ Value must be between {min_val} and {max_val}.")
             continue
         return value
 
@@ -509,10 +509,10 @@ def get_valid_float(prompt, min_val, max_val):
         try:
             value = float(raw)
         except ValueError:
-            print("\u2717 Please enter a valid number.")
+            print("✗ Please enter a valid number.")
             continue
         if value < min_val or value > max_val:
-            print("\u2717 Value must be between " + str(min_val) + " and " + str(max_val) + ".")
+            print(f"✗ Value must be between {min_val} and {max_val}.")
             continue
         return value
 
@@ -528,7 +528,8 @@ def get_valid_menu_choice(prompt, valid_options):
         for option in valid_options:
             if raw.lower() == option.lower():
                 return option
-        print("\u2717 Invalid choice. Options: " + ", ".join(valid_options))
+        joined = ", ".join(valid_options)
+        print(f"✗ Invalid choice. Options: {joined}")
 
 
 def get_valid_date(prompt, allow_past=True):
@@ -541,12 +542,12 @@ def get_valid_date(prompt, allow_past=True):
         try:
             value = datetime.strptime(raw, DATE_FORMAT)
         except ValueError:
-            print("\u2717 Invalid date. Use YYYY-MM-DD (e.g. 2026-05-01).")
+            print("✗ Invalid date. Use YYYY-MM-DD (e.g. 2026-05-01).")
             continue
         if not allow_past:
             today_start = datetime.combine(datetime.now().date(), datetime.min.time())
             if value < today_start:
-                print("\u2717 Date cannot be in the past.")
+                print("✗ Date cannot be in the past.")
                 continue
         return value
 
@@ -558,7 +559,7 @@ def get_valid_time(prompt):
         try:
             datetime.strptime(raw, TIME_FORMAT)
         except ValueError:
-            print("\u2717 Invalid time. Use HH:MM in 24-hour format (e.g. 18:30).")
+            print("✗ Invalid time. Use HH:MM in 24-hour format (e.g. 18:30).")
             continue
         return raw
 
@@ -574,12 +575,12 @@ def get_valid_phone(prompt):
         digits = ""
         for ch in raw:
             if ch.isdigit():
-                digits = digits + ch
+                digits += ch
         if len(digits) < 10 or len(digits) > 11:
-            print("\u2717 Phone must have 10 or 11 digits (e.g. 0123456789).")
+            print("✗ Phone must have 10 or 11 digits (e.g. 0123456789).")
             continue
         if not digits.startswith("01"):
-            print("\u2717 Malaysian mobile numbers start with 01.")
+            print("✗ Malaysian mobile numbers start with 01.")
             continue
         return digits
 
@@ -592,14 +593,14 @@ def get_valid_email(prompt):
     while True:
         raw = input(prompt).strip()
         if " " in raw:
-            print("\u2717 Email cannot contain spaces.")
+            print("✗ Email cannot contain spaces.")
             continue
         if raw.count("@") != 1:
-            print("\u2717 Email must contain exactly one '@'.")
+            print("✗ Email must contain exactly one '@'.")
             continue
         local, _, domain = raw.partition("@")
         if not local or "." not in domain:
-            print("\u2717 Email domain must contain a '.' (e.g. name@example.com).")
+            print("✗ Email domain must contain a '.' (e.g. name@example.com).")
             continue
         return raw
 
@@ -607,12 +608,12 @@ def get_valid_email(prompt):
 def get_yes_no(prompt):
     """Prompt until the user answers yes or no. Returns True for yes, False for no."""
     while True:
-        raw = input(prompt + " (y/n): ").strip().lower()
+        raw = input(f"{prompt} (y/n): ").strip().lower()
         if raw in ("y", "yes"):
             return True
         if raw in ("n", "no"):
             return False
-        print("\u2717 Please answer y or n.")
+        print("✗ Please answer y or n.")
 
 
 # ============================================================
@@ -644,7 +645,7 @@ def generate_member_id(members):
     for m in members:
         ids.append(m["id"])
     next_num = _max_numeric_suffix(ids, "M") + 1
-    return "M" + str(next_num).zfill(3)
+    return f"M{next_num:03d}"
 
 
 def generate_class_id(classes):
@@ -653,7 +654,7 @@ def generate_class_id(classes):
     for c in classes:
         ids.append(c["id"])
     next_num = _max_numeric_suffix(ids, "C") + 1
-    return "C" + str(next_num).zfill(3)
+    return f"C{next_num:03d}"
 
 
 def generate_trainer_id(trainers):
@@ -662,7 +663,7 @@ def generate_trainer_id(trainers):
     for t in trainers:
         ids.append(t["id"])
     next_num = _max_numeric_suffix(ids, "T") + 1
-    return "T" + str(next_num).zfill(3)
+    return f"T{next_num:03d}"
 
 
 def generate_payment_id(payments):
@@ -671,7 +672,7 @@ def generate_payment_id(payments):
     for p in payments:
         ids.append(p["id"])
     next_num = _max_numeric_suffix(ids, "P") + 1
-    return "P" + str(next_num).zfill(3)
+    return f"P{next_num:03d}"
 
 
 def generate_booking_id(bookings, today=None):
@@ -684,7 +685,7 @@ def generate_booking_id(bookings, today=None):
     if today is None:
         today = datetime.now()
     date_part = today.strftime("%Y%m%d")
-    prefix = "BK" + date_part
+    prefix = f"BK{date_part}"
     # Count only bookings whose ID starts with today's prefix.
     highest = 0
     for b in bookings:
@@ -695,7 +696,7 @@ def generate_booking_id(bookings, today=None):
                 number = int(suffix)
                 if number > highest:
                     highest = number
-    return prefix + str(highest + 1).zfill(3)
+    return f"{prefix}{highest + 1:03d}"
 
 
 def generate_receipt_id(existing_receipt_ids, today=None):
@@ -708,7 +709,7 @@ def generate_receipt_id(existing_receipt_ids, today=None):
     if today is None:
         today = datetime.now()
     date_part = today.strftime("%Y%m%d")
-    prefix = "RCP" + date_part
+    prefix = f"RCP{date_part}"
     highest = 0
     for rid in existing_receipt_ids:
         if rid.startswith(prefix) and len(rid) == len(prefix) + 3:
@@ -717,7 +718,7 @@ def generate_receipt_id(existing_receipt_ids, today=None):
                 number = int(suffix)
                 if number > highest:
                     highest = number
-    return prefix + str(highest + 1).zfill(3)
+    return f"{prefix}{highest + 1:03d}"
 
 
 def list_existing_receipt_ids():
@@ -732,7 +733,7 @@ def list_existing_receipt_ids():
                 rid = filename[len("receipt_"):-len(".txt")]
                 ids.append(rid)
     except Exception as e:
-        print("\u26a0\ufe0f  Error scanning receipts directory: " + str(e))
+        print(f"⚠️  Error scanning receipts directory: {e}")
     return ids
 
 
@@ -778,17 +779,17 @@ def find_booking_by_id(bookings, booking_id):
 
 def format_amount(amount):
     """Format a money value to a two-decimal string (e.g. 150.00)."""
-    return "{:.2f}".format(float(amount))
+    return f"{float(amount):.2f}"
 
 
 def format_currency(amount):
     """Format a money value as 'RM 150.00' for human-facing output."""
-    return "RM " + format_amount(amount)
+    return f"RM {format_amount(amount)}"
 
 
 def pause():
     """Pause the CLI until the user presses Enter. Used after every action."""
-    input("\n\u2139\ufe0f  Press Enter to continue...")
+    input("\nℹ️  Press Enter to continue...")
 
 
 def print_divider(char="-", width=MENU_WIDTH):
@@ -799,21 +800,21 @@ def print_divider(char="-", width=MENU_WIDTH):
 def print_header(title, width=MENU_WIDTH):
     """Print a boxed header like the menus in the brief."""
     print()
-    print("\u2554" + ("\u2550" * width) + "\u2557")
+    print(f"╔{'═' * width}╗")
     # Pad title to fill the box width (leaving one space each side).
-    inner = " " + title
+    inner = f" {title}"
     padding = width - len(inner)
     if padding < 0:
         padding = 0
-    print("\u2551" + inner + (" " * padding) + "\u2551")
-    print("\u255a" + ("\u2550" * width) + "\u255d")
+    print(f"║{inner}{' ' * padding}║")
+    print(f"╚{'═' * width}╝")
 
 
 def render_ascii_bar(label, value, max_value, bar_width=BAR_WIDTH_DEFAULT, char=BAR_CHAR):
     """
     Render one row of an ASCII bar chart.
 
-    Returns a string such as:   "Yoga         ############## 45"
+    Returns a string such as:   "Yoga         ██████████████ 45"
 
     Args:
         label:      left-hand label (max 12 chars rendered)
@@ -833,7 +834,7 @@ def render_ascii_bar(label, value, max_value, bar_width=BAR_WIDTH_DEFAULT, char=
             filled = bar_width
     bar = char * filled
     # {:<12} left-aligns the label in a 12-character column.
-    return "{:<12} {} {}".format(label, bar, value)
+    return f"{label:<12} {bar} {value}"
 
 
 # ============================================================
@@ -890,7 +891,7 @@ def calculate_cancellation_penalty(class_date_str, class_start_time_str, now=Non
         now = datetime.now()
     try:
         class_dt = datetime.strptime(
-            class_date_str + " " + class_start_time_str, "%Y-%m-%d %H:%M"
+            f"{class_date_str} {class_start_time_str}", "%Y-%m-%d %H:%M"
         )
     except ValueError:
         # Bad date/time in the stored booking -- treat conservatively as penalty.
@@ -932,7 +933,7 @@ def get_quota_used_this_month(bookings, member_id, reference_date=None):
         except ValueError:
             continue
         if class_dt.year == ref_year and class_dt.month == ref_month:
-            used = used + 1
+            used += 1
     return used
 
 
@@ -973,7 +974,7 @@ def recount_class_bookings(class_id):
     count = 0
     for b in bookings:
         if b["class_id"] == class_id and b["status"] != "Cancelled":
-            count = count + 1
+            count += 1
 
     updated = False
     for c in classes:
@@ -1021,7 +1022,7 @@ def auto_suspend_expired_members(acting_role="System"):
             log_audit(
                 acting_role,
                 "AUTO_SUSPEND",
-                m["id"] + " suspended (expired " + m["expiry_date"] + ")",
+                f"{m['id']} suspended (expired {m['expiry_date']})",
             )
 
     if changed:
