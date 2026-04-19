@@ -7,16 +7,19 @@ Responsibilities:
   3. Show the login screen. Accept up to 3 total attempts across all
      usernames; the user can type 'q' at the username prompt to exit.
   4. After a successful login, run the auto-maintenance tasks in order:
+       - auto_complete_past_classes (silent housekeeping: flips Scheduled
+         classes whose end time has passed to Completed).
        - auto_mark_no_shows (flips stale Confirmed -> No-Show, creates
-         Pending penalty payments, logs AUTO_NO_SHOW audit entries)
+         Pending penalty payments, logs AUTO_NO_SHOW audit entries).
        - auto_suspend_expired_members (flips past-grace Active ->
-         Suspended, logs AUTO_SUSPEND)
+         Suspended, logs AUTO_SUSPEND).
      Print a combined summary: '✓ System ready.' if nothing changed,
-     otherwise a '⚠️ ...' line with non-zero counts only.
+     otherwise a '⚠️ ...' line with non-zero no-show / suspend counts.
+     Class completions are silent in the user-facing summary; the
+     audit log still captures them.
   5. Route to the matching role menu (Administrator / BookingOfficer /
-     Accountant). Menu handlers in admin.py / booking.py / accountant.py
-     are stubs at this point; main.py displays the menus and shows a
-     placeholder for non-logout choices.
+     Accountant) and delegate each non-logout choice to the corresponding
+     role module's handle_choice() entry point.
   6. On logout, loop back to the login screen. Quitting from login
      ends the program.
 
@@ -43,10 +46,6 @@ LOGIN_ATTEMPTS_MAX = 3
 # Menu box width. Chosen so the widest header fits with padding:
 #   " BOOKING OFFICER DASHBOARD — Logged in as accountant"  == 52 chars
 MENU_WIDTH = 56
-
-# Placeholder for menu choices that aren't implemented yet (role modules
-# will take over after their respective files are written).
-PLACEHOLDER_LINE = "[Menu action coming next -- to be implemented in the role module.]"
 
 
 # ============================================================

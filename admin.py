@@ -5,16 +5,15 @@ Exposes one entry point -- handle_choice(choice, username) -- which main.py
 calls for every Administrator menu selection except Logout. This module
 owns:
 
-  1. Manage Classes       (Add / Update / Remove / View, via sub-menu)
-  2. Manage Trainers      (Add / Update / Remove / View, via sub-menu)
+  1. Manage Classes             (Add / Update / Remove / View, via sub-menu)
+  2. Manage Trainers            (Add / Update / Remove / View, via sub-menu)
   3. View All Members
   4. View All Bookings
   5. View All Payments
-  6. System Report        (multi-section text summary)
-
-F6 Peak Hours Analytics, F9 Analytics Dashboard, and F7 View Audit Log
-are placeholders here -- they're the last step of the build order and
-will be filled in after booking.py and accountant.py.
+  6. System Report              (multi-section text summary)
+  7. F6 Peak Hours Analytics    (ASCII bar chart of non-Cancelled bookings)
+  8. F9 Analytics Dashboard     (5-section signature report)
+  9. F7 View Audit Log          (newest-first, with role / action filters)
 
 Business rules enforced in this module:
   * Removing a class that still has Confirmed bookings cascades those
@@ -25,6 +24,10 @@ Business rules enforced in this module:
     assignments (status != Cancelled AND schedule_date >= today). The
     admin is shown the blocking classes and told to reassign first.
     Otherwise the trainer is soft-deleted by flipping status to Inactive.
+  * F6 / F9 exclude Cancelled bookings from the analytics so the charts
+    reflect actual usage rather than abandoned reservations. F9 Revenue
+    Trend excludes Penalty payments so small RM10/RM20 rows don't skew
+    the tier-fee bars.
 """
 
 import os.path
@@ -57,12 +60,6 @@ def handle_choice(choice, username):
         analytics_dashboard()
     elif choice == "9":
         view_audit_log()
-
-
-def _placeholder(feature_name):
-    """Stand-in until the feature is implemented in the next pass."""
-    print(f"\nℹ️  {feature_name} -- to be implemented in the next pass.")
-    utils.pause()
 
 
 # ============================================================
@@ -986,8 +983,15 @@ _DASH_COUNT_BAR_WIDTH = 26         # for class popularity / tier / peak-hour bar
 _DASH_MONEY_BAR_WIDTH = 22         # leaves room for "RM 1234.56" + % change tag
 
 
-def _render_money_bar(label, amount, max_amount, bar_width=_DASH_MONEY_BAR_WIDTH):
-    """Count-based render_ascii_bar, but the tail shows a formatted RM value."""
+def _render_money_bar(label, amount, max_amount,
+                      bar_width=_DASH_MONEY_BAR_WIDTH, label_width=12):
+    """
+    Count-based render_ascii_bar, but the tail shows a formatted RM value.
+
+    label_width is configurable so the Revenue Trend section can widen the
+    left column enough to fit labels like "Apr 2026 (partial)" without
+    pushing later rows out of alignment.
+    """
     if max_amount is None or max_amount <= 0:
         filled = 0
     else:
@@ -997,7 +1001,7 @@ def _render_money_bar(label, amount, max_amount, bar_width=_DASH_MONEY_BAR_WIDTH
         if filled > bar_width:
             filled = bar_width
     bar = utils.BAR_CHAR * filled
-    return f"{label:<12} {bar} {utils.format_currency(amount)}"
+    return f"{label:<{label_width}} {bar} {utils.format_currency(amount)}"
 
 
 def _count_pair_sort_key(pair):
@@ -1080,24 +1084,39 @@ def _dashboard_revenue_trend(payments, today):
         "📊", "REVENUE TREND (Last 6 Months, Paid Membership)", SECTION_WIDTH,
     )
 
+    # Label column widened to 18 so "Apr 2026 (partial)" (18 chars) fits
+    # alongside shorter labels like "Nov 2025" without the bar column
+    # drifting right on the final row.
+    revenue_label_width = 18
+
     prev = None
     for key in months:
         (yr, mo) = key
         amount = buckets[key]
         label = datetime(yr, mo, 1).strftime("%b %Y")
-        line = _render_money_bar(label, amount, max_amount)
+        # Flag the current (incomplete) calendar month so a viewer doesn't
+        # mistake a partial month for a real revenue drop during Q&A.
+        is_partial = (yr == today.year and mo == today.month)
+        if is_partial:
+            label = f"{label} (partial)"
+        line = _render_money_bar(
+            label, amount, max_amount, label_width=revenue_label_width,
+        )
 
-        # Month-over-month % change tag for months 2..6.
-        if prev is not None and prev > 0:
-            pct = ((amount - prev) / prev) * 100.0
-            # Tiny changes (<0.5%) show no tag so the line stays tidy.
-            if pct >= 0.5:
-                line = f"{line}  📈 +{pct:.1f}%"
-            elif pct <= -0.5:
-                line = f"{line}  📉 {pct:.1f}%"
-        elif prev is not None and prev == 0 and amount > 0:
-            # No previous baseline to compute a % against but not empty now.
-            line = f"{line}  📈 new"
+        # Month-over-month % change tag for non-partial months 2..6 only.
+        # The partial month's comparison against a full prior month would
+        # be misleading so we suppress the tag there.
+        if not is_partial:
+            if prev is not None and prev > 0:
+                pct = ((amount - prev) / prev) * 100.0
+                # Tiny changes (<0.5%) show no tag so the line stays tidy.
+                if pct >= 0.5:
+                    line = f"{line}  📈 +{pct:.1f}%"
+                elif pct <= -0.5:
+                    line = f"{line}  📉 {pct:.1f}%"
+            elif prev is not None and prev == 0 and amount > 0:
+                # No previous baseline to compute a % against but not empty now.
+                line = f"{line}  📈 new"
 
         print(f"  {line}")
         prev = amount
