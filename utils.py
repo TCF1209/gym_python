@@ -743,16 +743,30 @@ def generate_receipt_id(existing_receipt_ids, today=None):
 
 
 def list_existing_receipt_ids():
-    """Scan receipts/ and return the list of receipt IDs already on disk."""
+    """
+    Scan receipts/ and return RCP IDs already on disk.
+
+    Filename convention: receipt_{RCP_ID}_{payment_id}.txt
+      e.g. receipt_RCP20260420001_P061.txt
+    Legacy layout receipt_{RCP_ID}.txt is also recognised.
+    """
     ids = []
     if not os.path.exists(RECEIPTS_DIR):
         return ids
     try:
         for filename in os.listdir(RECEIPTS_DIR):
-            # Expected form: receipt_RCP20260420001.txt
-            if filename.startswith("receipt_") and filename.endswith(".txt"):
-                rid = filename[len("receipt_"):-len(".txt")]
-                ids.append(rid)
+            if not filename.startswith("receipt_"):
+                continue
+            if not filename.endswith(".txt"):
+                continue
+            core = filename[len("receipt_"):-len(".txt")]
+            # The RCP id is the part before the first '_'. If there's no '_'
+            # the whole core IS the RCP id (legacy files).
+            if "_" in core:
+                rcp_id = core.split("_", 1)[0]
+            else:
+                rcp_id = core
+            ids.append(rcp_id)
     except Exception as e:
         print(f"⚠️  Error scanning receipts directory: {e}")
     return ids

@@ -26,6 +26,7 @@ entries from utils):
   - {Role} | LOGOUT | {username}
 """
 
+import accountant
 import admin
 import booking
 import seed_data
@@ -267,7 +268,7 @@ ACCOUNTANT_OPTIONS = [
 
 
 def run_accountant_session(username):
-    """Accountant menu loop. Full logic moves to accountant.py later."""
+    """Accountant menu loop. Delegates each choice to accountant.handle_choice."""
     while True:
         _display_role_menu("ACCOUNTANT DASHBOARD", username, ACCOUNTANT_OPTIONS)
         choice = _ask_menu_choice(ACCOUNTANT_OPTIONS)
@@ -275,8 +276,7 @@ def run_accountant_session(username):
             utils.log_audit("Accountant", "LOGOUT", username)
             print("\n✓ Logged out.")
             return
-        print(f"\n{PLACEHOLDER_LINE}")
-        utils.pause()
+        accountant.handle_choice(choice, username)
 
 
 # ============================================================
