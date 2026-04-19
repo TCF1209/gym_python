@@ -19,16 +19,36 @@ This file provides essential guidance to Claude Code (claude.ai/code) when worki
 > "✅ CRITICAL RULES ACKNOWLEDGED - I will follow all prohibitions and requirements listed in CLAUDE.md"
 
 ### ❌ ABSOLUTE PROHIBITIONS
-- **NEVER** create new files in root directory → use proper module structure
-- **NEVER** write output files directly to root directory → use designated output folders
+- **NEVER** use `class` keyword — this project is procedural Python (no OOP)
+- **NEVER** import external libraries (no `pip install`). Only stdlib: `os`, `os.path`, `datetime`, `random`, `sys`
+- **NEVER** use a database (not even SQLite). All persistence is pipe-delimited text files in `data/`
+- **NEVER** use advanced Python features teammates can't explain: decorators, generators with `yield`, walrus `:=`, complex comprehensions, lambdas in non-trivial places, type hints, `*args`/`**kwargs` (unless essential)
+- **NEVER** write raw data files outside `data/`; receipts go in `receipts/`, backups in `backup/`
 - **NEVER** create documentation files (.md) unless explicitly requested by user
 - **NEVER** use git commands with -i flag (interactive mode not supported)
 - **NEVER** use `find`, `grep`, `cat`, `head`, `tail`, `ls` commands → use Read, LS, Grep, Glob tools instead
 - **NEVER** create duplicate files (manager_v2.py, enhanced_xyz.py, utils_new.js) → ALWAYS extend existing files
 - **NEVER** create multiple implementations of same concept → single source of truth
 - **NEVER** copy-paste code blocks → extract into shared utilities/functions
-- **NEVER** hardcode values that should be configurable → use config files/environment variables
+- **NEVER** hardcode values that should be configurable → define in `utils.py` constants
 - **NEVER** use naming like enhanced_, improved_, new_, v2_ → extend original files instead
+
+### 📐 PROJECT STRUCTURE (Flat — Per Assignment Brief)
+
+This assignment mandates a **flat project structure** (no `src/main/python/` layering). All `.py` modules live at project root:
+
+```
+fitzone_gym/
+├── main.py
+├── admin.py
+├── booking.py
+├── accountant.py
+├── utils.py
+├── seed_data.py
+├── data/        # pipe-delimited text files (auto-created on first run)
+├── receipts/    # .txt receipts (auto-created on first receipt)
+└── backup/      # optional
+```
 
 ### 📝 MANDATORY REQUIREMENTS
 - **COMMIT** after every completed task/phase - no exceptions
@@ -75,34 +95,13 @@ This file provides essential guidance to Claude Code (claude.ai/code) when worki
 
 ## 🏗️ PROJECT OVERVIEW
 
-Python-based Fitness Center Membership & Class Booking System.
+**FitZone Gym** — procedural-Python (no OOP) Fitness Center Membership & Class Booking System. Group assignment for CT108-3-1-PYP. Role-based CLI (Administrator / Booking Officer / Accountant). Pipe-delimited text-file storage. Signature feature: ASCII-chart analytics dashboard.
 
-Standard project structure:
+Authoritative specs:
+- `PROJECT_BRIEF (1).md` — full specification (schemas, business rules, features, demo plan)
+- `CLAUDE_CODE_INSTRUCTIONS.md` — code-style rules, build order, traps to avoid
 
-```
-project-root/
-├── CLAUDE.md
-├── README.md
-├── .gitignore
-├── src/
-│   ├── main/
-│   │   ├── python/
-│   │   │   ├── core/      # Core business logic
-│   │   │   ├── utils/     # Utility functions
-│   │   │   ├── models/    # Data models (Member, Class, Booking)
-│   │   │   ├── services/  # Membership, booking services
-│   │   │   └── api/       # API endpoints/interfaces
-│   │   └── resources/
-│   │       ├── config/
-│   │       └── assets/
-│   └── test/
-│       ├── unit/
-│       └── integration/
-├── docs/
-├── tools/
-├── examples/
-└── output/
-```
+Build order: `utils.py` → `seed_data.py` → `main.py` → `admin.py` → `booking.py` → `accountant.py` → F6 → F9 → F7 weaving → polish.
 
 ### 🎯 **DEVELOPMENT STATUS**
 - **Setup**: ✅ Complete
