@@ -39,6 +39,11 @@ Thumbs.db
 *.log
 logs/
 
+# Runtime data (seed_data.py regenerates deterministically via random.seed(42))
+data/
+receipts/
+backup/
+
 # Output files (use output/ directory instead)
 *.csv
 *.json

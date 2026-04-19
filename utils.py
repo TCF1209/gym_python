@@ -68,6 +68,9 @@ VALID_PAYMENT_METHODS = ["Cash", "Card"]
 VALID_PAYMENT_STATUSES = ["Paid", "Pending"]
 VALID_GENDERS = ["M", "F"]
 VALID_ROLES = ["Administrator", "BookingOfficer", "Accountant"]
+# Audit log additionally accepts "System" so automated tasks don't masquerade
+# as a logged-in user when recording AUTO_SUSPEND / AUTO_NO_SHOW etc.
+VALID_AUDIT_ROLES = ["Administrator", "BookingOfficer", "Accountant", "System"]
 
 # --- Directory and file paths (cross-platform via os.path.join) ---
 DATA_DIR = "data"
@@ -334,7 +337,19 @@ def write_bookings(bookings):
 # ============================================================
 
 def read_payments():
-    """Read payments.txt and return a list of payment dicts."""
+    """
+    Read payments.txt and return a list of payment dicts.
+
+    Schema (8 fields, pipe-delimited):
+      PAYMENT_ID | MEMBER_ID | AMOUNT | PAYMENT_TYPE | METHOD |
+      PAYMENT_DATE | STATUS | REFERENCE_ID
+
+    REFERENCE_ID is the booking_id for Penalty payments (so receipts can
+    say "Late Cancellation Penalty - BK..."), and an empty string for
+    Membership payments. This field is an extension to the brief's
+    original 7-field schema, chosen over sentinel conventions so the
+    payment -> booking link is explicit.
+    """
     payments = []
     try:
         with open(PAYMENTS_FILE, "r", encoding="utf-8") as f:
@@ -343,7 +358,7 @@ def read_payments():
                 if not line:
                     continue
                 parts = line.split("|")
-                if len(parts) != 7:
+                if len(parts) != 8:
                     continue
                 payment = {
                     "id": parts[0],
@@ -353,6 +368,7 @@ def read_payments():
                     "method": parts[4],
                     "payment_date": parts[5],
                     "status": parts[6],
+                    "reference_id": parts[7],
                 }
                 payments.append(payment)
     except FileNotFoundError:
@@ -363,7 +379,7 @@ def read_payments():
 
 
 def write_payments(payments):
-    """Overwrite payments.txt with the given list of payment dicts."""
+    """Overwrite payments.txt with the given list of payment dicts (8 fields)."""
     try:
         ensure_data_dir()
         with open(PAYMENTS_FILE, "w", encoding="utf-8") as f:
@@ -371,7 +387,7 @@ def write_payments(payments):
                 line = "|".join([
                     p["id"], p["member_id"], format_amount(p["amount"]),
                     p["payment_type"], p["method"],
-                    p["payment_date"], p["status"],
+                    p["payment_date"], p["status"], p["reference_id"],
                 ])
                 f.write(f"{line}\n")
     except Exception as e:
@@ -1028,6 +1044,82 @@ def auto_suspend_expired_members(acting_role="System"):
     if changed:
         write_members(members)
     return suspended_ids
+
+
+def auto_mark_no_shows(acting_role="System"):
+    """
+    Called at successful login (same slot as auto_suspend_expired_members).
+
+    For every Confirmed booking whose class datetime has already passed:
+      - Flip booking status to 'No-Show' and set its penalty_rm to
+        NO_SHOW_PENALTY_RM.
+      - Create a Pending Penalty payment referencing the booking_id.
+        The payment's 'method' is left empty until the Accountant
+        records how it is paid.
+      - Append an audit-log entry as role='System' (default).
+
+    Returns the list of affected booking IDs (for login-time UI feedback).
+    """
+    bookings = read_bookings()
+    classes = read_classes()
+    payments = read_payments()
+    now = datetime.now()
+    affected = []
+
+    bookings_changed = False
+    payments_changed = False
+
+    for b in bookings:
+        if b["status"] != "Confirmed":
+            continue
+        cls = find_class_by_id(classes, b["class_id"])
+        if cls is None:
+            # Orphaned booking (class was deleted); skip safely.
+            continue
+        try:
+            class_dt = datetime.strptime(
+                f"{cls['schedule_date']} {cls['start_time']}",
+                "%Y-%m-%d %H:%M",
+            )
+        except ValueError:
+            # Bad stored date/time; skip without mutating.
+            continue
+        if class_dt >= now:
+            continue
+
+        # Flip Confirmed -> No-Show and record the penalty on the booking.
+        b["status"] = "No-Show"
+        b["penalty_rm"] = NO_SHOW_PENALTY_RM
+        bookings_changed = True
+
+        # Create the Pending Penalty payment that ties to this booking.
+        new_payment_id = generate_payment_id(payments)
+        new_payment = {
+            "id": new_payment_id,
+            "member_id": b["member_id"],
+            "amount": NO_SHOW_PENALTY_RM,
+            "payment_type": "Penalty",
+            "method": "",                              # set when Accountant records payment
+            "payment_date": now.strftime(DATE_FORMAT),
+            "status": "Pending",
+            "reference_id": b["id"],
+        }
+        payments.append(new_payment)
+        payments_changed = True
+
+        penalty_str = format_amount(NO_SHOW_PENALTY_RM)
+        log_audit(
+            acting_role,
+            "AUTO_NO_SHOW",
+            f"{b['id']} -> No-Show, penalty {new_payment_id} RM{penalty_str}",
+        )
+        affected.append(b["id"])
+
+    if bookings_changed:
+        write_bookings(bookings)
+    if payments_changed:
+        write_payments(payments)
+    return affected
 
 
 # ============================================================
