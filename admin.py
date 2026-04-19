@@ -54,7 +54,7 @@ def handle_choice(choice, username):
     elif choice == "7":
         peak_hours_analytics()
     elif choice == "8":
-        _placeholder("F9 Analytics Dashboard")
+        analytics_dashboard()
     elif choice == "9":
         view_audit_log()
 
@@ -970,3 +970,251 @@ def view_audit_log():
         print(f"  {e['timestamp']} | {e['role']:<14} | "
               f"{e['action']:<22} | {e['detail']}")
     utils.pause()
+
+
+# ============================================================
+# F9 -- ANALYTICS DASHBOARD
+# ============================================================
+#
+# Multi-section ASCII dashboard. Each section uses the same bar style as
+# F6 (utils.render_ascii_bar for counts; a local _render_money_bar for
+# currency values). Bars scale per-section so small sections (payment
+# status with 2 bars) and large ones (6-month revenue trend) all render
+# at the same width on screen.
+
+_DASH_COUNT_BAR_WIDTH = 26         # for class popularity / tier / peak-hour bars
+_DASH_MONEY_BAR_WIDTH = 22         # leaves room for "RM 1234.56" + % change tag
+
+
+def _render_money_bar(label, amount, max_amount, bar_width=_DASH_MONEY_BAR_WIDTH):
+    """Count-based render_ascii_bar, but the tail shows a formatted RM value."""
+    if max_amount is None or max_amount <= 0:
+        filled = 0
+    else:
+        filled = int((float(amount) / float(max_amount)) * bar_width)
+        if filled < 0:
+            filled = 0
+        if filled > bar_width:
+            filled = bar_width
+    bar = utils.BAR_CHAR * filled
+    return f"{label:<12} {bar} {utils.format_currency(amount)}"
+
+
+def _count_pair_sort_key(pair):
+    """Sort helper: sort a (name, count) tuple by count. Used with reverse=True."""
+    return pair[1]
+
+
+def analytics_dashboard():
+    """Feature F9. Five sections (Revenue / Class popularity / Members /
+    Payment / Summary) rendered with consistent ASCII bars."""
+    members = utils.read_members()
+    classes = utils.read_classes()
+    bookings = utils.read_bookings()
+    payments = utils.read_payments()
+    today = datetime.now().date()
+
+    _dashboard_banner()
+    _dashboard_revenue_trend(payments, today)
+    _dashboard_class_popularity(bookings, classes)
+    _dashboard_membership_distribution(members)
+    _dashboard_payment_status(payments)
+    _dashboard_summary(members, bookings, payments)
+
+    utils.pause()
+
+
+def _dashboard_banner():
+    """Boxed top banner with generation timestamp."""
+    timestamp = datetime.now().strftime(utils.DATETIME_FORMAT)
+    title = " FITZONE ANALYTICS DASHBOARD"
+    subtitle = f" Generated: {timestamp}"
+    print()
+    print(f"╔{'═' * SECTION_WIDTH}╗")
+    print(f"║{title.ljust(SECTION_WIDTH)}║")
+    print(f"║{subtitle.ljust(SECTION_WIDTH)}║")
+    print(f"╚{'═' * SECTION_WIDTH}╝")
+
+
+def _dashboard_revenue_trend(payments, today):
+    """
+    Section 1: 6-month Paid Membership revenue, oldest first, with a
+    month-over-month % change tag on months 2..6. Penalty payments are
+    excluded per product decision (their amounts skew the chart).
+    """
+    # Build the (year, month) list, oldest first.
+    months = []
+    y = today.year
+    m = today.month
+    for _ in range(6):
+        months.append((y, m))
+        m -= 1
+        if m < 1:
+            m = 12
+            y -= 1
+    months.reverse()
+
+    # Bucket Paid Membership by month.
+    buckets = {}
+    for key in months:
+        buckets[key] = 0.0
+    for p in payments:
+        if p["status"] != "Paid":
+            continue
+        if p["payment_type"] != "Membership":
+            continue
+        try:
+            pdate = datetime.strptime(p["payment_date"], utils.DATE_FORMAT).date()
+        except ValueError:
+            continue
+        key = (pdate.year, pdate.month)
+        if key in buckets:
+            buckets[key] += p["amount"]
+
+    max_amount = 0.0
+    for key in buckets:
+        if buckets[key] > max_amount:
+            max_amount = buckets[key]
+
+    utils.print_section_header(
+        "📊", "REVENUE TREND (Last 6 Months, Paid Membership)", SECTION_WIDTH,
+    )
+
+    prev = None
+    for key in months:
+        (yr, mo) = key
+        amount = buckets[key]
+        label = datetime(yr, mo, 1).strftime("%b %Y")
+        line = _render_money_bar(label, amount, max_amount)
+
+        # Month-over-month % change tag for months 2..6.
+        if prev is not None and prev > 0:
+            pct = ((amount - prev) / prev) * 100.0
+            # Tiny changes (<0.5%) show no tag so the line stays tidy.
+            if pct >= 0.5:
+                line = f"{line}  📈 +{pct:.1f}%"
+            elif pct <= -0.5:
+                line = f"{line}  📉 {pct:.1f}%"
+        elif prev is not None and prev == 0 and amount > 0:
+            # No previous baseline to compute a % against but not empty now.
+            line = f"{line}  📈 new"
+
+        print(f"  {line}")
+        prev = amount
+
+
+def _dashboard_class_popularity(bookings, classes):
+    """Section 2: non-Cancelled bookings grouped by class type, sorted desc."""
+    # class_id -> class_name lookup.
+    name_of_class = {}
+    for c in classes:
+        name_of_class[c["id"]] = c["name"]
+
+    counts_by_name = {}
+    total = 0
+    for b in bookings:
+        if b["status"] == "Cancelled":
+            continue
+        if b["class_id"] not in name_of_class:
+            continue
+        name = name_of_class[b["class_id"]]
+        if name in counts_by_name:
+            counts_by_name[name] += 1
+        else:
+            counts_by_name[name] = 1
+        total += 1
+
+    utils.print_section_header(
+        "🏆", f"CLASS POPULARITY ({total} non-Cancelled bookings)", SECTION_WIDTH,
+    )
+
+    if total == 0:
+        print("  (no bookings to rank)")
+        return
+
+    pairs = []
+    for name, count in counts_by_name.items():
+        pairs.append((name, count))
+    pairs.sort(key=_count_pair_sort_key, reverse=True)
+
+    max_count = pairs[0][1]
+    for name, count in pairs:
+        pct = (count * 100.0) / total
+        bar_line = utils.render_ascii_bar(name, count, max_count, bar_width=_DASH_COUNT_BAR_WIDTH)
+        print(f"  {bar_line} ({pct:.1f}%)")
+
+
+def _dashboard_membership_distribution(members):
+    """Section 3: tier split across ALL members regardless of status."""
+    tier_counts = {"Basic": 0, "Premium": 0, "VIP": 0}
+    for m in members:
+        if m["tier"] in tier_counts:
+            tier_counts[m["tier"]] += 1
+    total = len(members)
+
+    utils.print_section_header(
+        "👥", f"MEMBERSHIP DISTRIBUTION ({total} members)", SECTION_WIDTH,
+    )
+    if total == 0:
+        print("  (no members on file)")
+        return
+
+    max_count = 0
+    for tier in tier_counts:
+        if tier_counts[tier] > max_count:
+            max_count = tier_counts[tier]
+
+    # Render in tier hierarchy order (Basic -> Premium -> VIP), not by count.
+    for tier in utils.VALID_TIERS:
+        count = tier_counts[tier]
+        pct = (count * 100.0) / total
+        bar_line = utils.render_ascii_bar(tier, count, max_count, bar_width=_DASH_COUNT_BAR_WIDTH)
+        print(f"  {bar_line} ({pct:.1f}%)")
+
+
+def _dashboard_payment_status(payments):
+    """Section 4: Paid vs Pending totals (across all payment types) with %."""
+    paid_total = 0.0
+    pending_total = 0.0
+    for p in payments:
+        if p["status"] == "Paid":
+            paid_total += p["amount"]
+        elif p["status"] == "Pending":
+            pending_total += p["amount"]
+    grand = paid_total + pending_total
+
+    utils.print_section_header("💰", "PAYMENT STATUS", SECTION_WIDTH)
+
+    if grand <= 0:
+        print("  (no payments on file)")
+        return
+
+    paid_pct = (paid_total * 100.0) / grand
+    pending_pct = (pending_total * 100.0) / grand
+
+    max_amt = paid_total
+    if pending_total > max_amt:
+        max_amt = pending_total
+
+    paid_line = _render_money_bar("Paid", paid_total, max_amt)
+    pending_line = _render_money_bar("Pending", pending_total, max_amt)
+    print(f"  {paid_line}  ({paid_pct:.1f}%)")
+    print(f"  {pending_line}  ({pending_pct:.1f}%)")
+
+
+def _dashboard_summary(members, bookings, payments):
+    """Bottom summary footer: Total Revenue (Paid) / Active Members / Total Bookings."""
+    paid_total = 0.0
+    for p in payments:
+        if p["status"] == "Paid":
+            paid_total += p["amount"]
+    active_count = 0
+    for m in members:
+        if m["status"] == "Active":
+            active_count += 1
+
+    print()
+    print(f"  {'─' * (SECTION_WIDTH - 2)}")
+    print(f"  Total Revenue:  {utils.format_currency(paid_total)}  (Paid only)")
+    print(f"  Active Members: {active_count}")
+    print(f"  Total Bookings: {len(bookings)}")
