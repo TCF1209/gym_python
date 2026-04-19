@@ -52,6 +52,22 @@ MENU_WIDTH = 56
 # BOXED OUTPUT HELPERS
 # ============================================================
 
+# Characters whose Python len() is 1 but that most terminals render as 2
+# cells. Used to compensate padding so the right-edge ║ stays aligned on
+# rows that contain these glyphs. Extend if future menu labels introduce
+# more wide emojis.
+_WIDE_GLYPHS = "⭐"
+
+
+def _display_width(s):
+    """Approximate terminal cell count -- add 1 per known wide glyph."""
+    extra = 0
+    for ch in s:
+        if ch in _WIDE_GLYPHS:
+            extra += 1
+    return len(s) + extra
+
+
 def _box_top():
     print(f"╔{'═' * MENU_WIDTH}╗")
 
@@ -68,7 +84,7 @@ def _box_line(content):
     """Print one boxed line, padding content to the fixed MENU_WIDTH."""
     # Always leave one space after ║ for readability.
     inner = f" {content}"
-    pad = MENU_WIDTH - len(inner)
+    pad = MENU_WIDTH - _display_width(inner)
     if pad < 0:
         # Fall back: truncate rather than break the box.
         inner = inner[:MENU_WIDTH]
@@ -209,9 +225,9 @@ ADMIN_OPTIONS = [
     ("4",  "View All Bookings"),
     ("5",  "View All Payments"),
     ("6",  "System Report"),
-    ("7",  "Peak Hours Analytics [F6]"),
-    ("8",  "Analytics Dashboard [F9]"),
-    ("9",  "View Audit Log [F7]"),
+    ("7",  "⭐ Peak Hours Analytics"),
+    ("8",  "⭐ Analytics Dashboard"),
+    ("9",  "⭐ View Audit Log"),
     ("10", "Logout"),
 ]
 
@@ -258,7 +274,7 @@ def run_booking_session(username):
 ACCOUNTANT_OPTIONS = [
     ("1", "Record Membership Payment"),
     ("2", "Record Penalty Payment"),
-    ("3", "Generate Receipt [F2]"),
+    ("3", "⭐ Generate Receipt"),
     ("4", "View Payment Records"),
     ("5", "Income Report"),
     ("6", "Track Unpaid Memberships"),
