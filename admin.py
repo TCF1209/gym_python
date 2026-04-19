@@ -52,11 +52,11 @@ def handle_choice(choice, username):
     elif choice == "6":
         system_report()
     elif choice == "7":
-        _placeholder("F6 Peak Hours Analytics")
+        peak_hours_analytics()
     elif choice == "8":
         _placeholder("F9 Analytics Dashboard")
     elif choice == "9":
-        _placeholder("F7 View Audit Log")
+        view_audit_log()
 
 
 def _placeholder(feature_name):
@@ -797,3 +797,176 @@ def _report_system_health(members, payments, audit_entries):
         if os.path.exists(fp):
             present += 1
     print(f"  Data files on disk:  {present}/{len(data_files)}")
+
+
+# ============================================================
+# F6 -- PEAK HOURS ANALYTICS
+# ============================================================
+
+def peak_hours_analytics():
+    """
+    Hour-bucket bar chart of non-Cancelled bookings (per product decision:
+    peak hours reflect actual usage, not abandoned reservations). Each bar
+    uses utils.render_ascii_bar; the busiest hour is flagged with a star
+    plus a short recommendation line.
+    """
+    bookings = utils.read_bookings()
+    classes = utils.read_classes()
+
+    # class_id -> start_time mapping so we don't O(n*m) linear-scan per booking.
+    class_start = {}
+    for c in classes:
+        class_start[c["id"]] = c["start_time"]
+
+    # Count by integer start-hour.
+    hour_counts = {}
+    total = 0
+    for b in bookings:
+        if b["status"] == "Cancelled":
+            continue
+        if b["class_id"] not in class_start:
+            continue
+        start_time = class_start[b["class_id"]]
+        try:
+            hour = int(start_time.split(":")[0])
+        except ValueError:
+            continue
+        if hour in hour_counts:
+            hour_counts[hour] += 1
+        else:
+            hour_counts[hour] = 1
+        total += 1
+
+    if total == 0:
+        print("\nℹ️  No non-Cancelled bookings to analyse yet.")
+        utils.pause()
+        return
+
+    # Find the peak hour and the max count (for scaling the bars).
+    peak_hour = 0
+    peak_count = 0
+    for h in hour_counts:
+        if hour_counts[h] > peak_count:
+            peak_count = hour_counts[h]
+            peak_hour = h
+
+    utils.print_section_header(
+        "📊", f"PEAK HOUR ANALYSIS (Based on {total} bookings)", SECTION_WIDTH,
+    )
+
+    # Ascending hour order so the chart reads left-to-right like a clock.
+    sorted_hours = sorted(hour_counts.keys())
+    for h in sorted_hours:
+        count = hour_counts[h]
+        label = f"{h:02d}:00"
+        bar = utils.render_ascii_bar(label, count, peak_count)
+        if h == peak_hour:
+            bar = f"{bar}  ⭐ PEAK"
+        print(f"  {bar}")
+
+    print(f"  {'─' * (SECTION_WIDTH - 2)}")
+    peak_pct = (peak_count * 100.0) / total
+    print(f"  Busiest hour:   {peak_hour:02d}:00  ({peak_pct:.1f}% of all bookings)")
+    print(f"  Recommendation: schedule more classes at {peak_hour:02d}:00")
+    utils.pause()
+
+
+# ============================================================
+# F7 -- VIEW AUDIT LOG (with filters)
+# ============================================================
+
+_AUDIT_FILTER_OPTIONS = [
+    ("1", "All entries"),
+    ("2", "Filter by role"),
+    ("3", "Filter by action"),
+    ("4", "Back"),
+]
+
+_AUDIT_LIMIT = 50                       # newest-N cap per product decision
+
+
+def _unique_sorted(values):
+    """Return a stable-sorted list of unique values (beginner-friendly dedup)."""
+    seen = []
+    for v in values:
+        if v not in seen:
+            seen.append(v)
+    seen.sort()
+    return seen
+
+
+def view_audit_log():
+    """Feature F7: newest-first audit log with optional role / action filter."""
+    entries = utils.read_audit_log()
+    if not entries:
+        print("\nℹ️  No audit entries on file.")
+        utils.pause()
+        return
+
+    # Newest first.
+    entries_desc = list(reversed(entries))
+
+    print("\n── View Audit Log ──")
+    for num, label in _AUDIT_FILTER_OPTIONS:
+        print(f"  {num}. {label}")
+    choice = utils.get_valid_menu_choice(
+        "  Enter choice [1-4]: ", ["1", "2", "3", "4"],
+    )
+    if choice == "4":
+        return
+
+    filter_label = "All entries"
+    filtered = entries_desc
+
+    if choice == "2":
+        roles_in_log = []
+        for e in entries:
+            roles_in_log.append(e["role"])
+        roles = _unique_sorted(roles_in_log)
+        print("\n  Roles in log:")
+        for r in roles:
+            print(f"    - {r}")
+        role_pick = utils.get_valid_menu_choice("  Role: ", roles)
+        filter_label = f"role = {role_pick}"
+        filtered = []
+        for e in entries_desc:
+            if e["role"] == role_pick:
+                filtered.append(e)
+
+    elif choice == "3":
+        actions_in_log = []
+        for e in entries:
+            actions_in_log.append(e["action"])
+        actions = _unique_sorted(actions_in_log)
+        print("\n  Actions in log:")
+        for a in actions:
+            print(f"    - {a}")
+        action_pick = utils.get_valid_menu_choice("  Action: ", actions)
+        filter_label = f"action = {action_pick}"
+        filtered = []
+        for e in entries_desc:
+            if e["action"] == action_pick:
+                filtered.append(e)
+
+    if not filtered:
+        print(f"\nℹ️  No audit entries match filter: {filter_label}")
+        utils.pause()
+        return
+
+    total_match = len(filtered)
+    if total_match > _AUDIT_LIMIT:
+        print(f"\nℹ️  Showing newest {_AUDIT_LIMIT} of {total_match} "
+              f"matching entries  (filter: {filter_label}).")
+        filtered = filtered[:_AUDIT_LIMIT]
+    else:
+        print(f"\nℹ️  {total_match} matching entries, newest first  "
+              f"(filter: {filter_label}).")
+
+    utils.print_section_header("📜", "AUDIT LOG", SECTION_WIDTH)
+    # Line format avoids the 80-col wrap problems of a fixed-width table --
+    # the variable-length 'detail' field is the last column and can wrap
+    # naturally without disturbing the earlier alignment.
+    for e in filtered:
+        print(f"  {e['timestamp']} | {e['role']:<14} | "
+              f"{e['action']:<22} | {e['detail']}")
+    utils.pause()

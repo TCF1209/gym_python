@@ -150,6 +150,10 @@ def _write_receipt_file(payment, member):
     """
     Create a fresh receipt file in receipts/. Returns (path, rcp_id) on
     success, or (None, None) on write failure.
+
+    Every successful write logs GENERATE_RECEIPT so the audit trail covers
+    both the auto-generated path (from Record Membership/Penalty Payment)
+    and the explicit F2 re-print path.
     """
     utils.ensure_receipts_dir()
     existing_ids = utils.list_existing_receipt_ids()
@@ -163,6 +167,10 @@ def _write_receipt_file(payment, member):
     except Exception as e:
         print(f"⚠️  Error writing receipt: {e}")
         return None, None
+    utils.log_audit(
+        "Accountant", "GENERATE_RECEIPT",
+        f"{rcp_id} for {payment['id']}",
+    )
     return path, rcp_id
 
 
@@ -420,18 +428,14 @@ def generate_receipt_menu(username):
         _display_file(existing_path)
     else:
         # No file on disk (e.g., seeded Paid payment predates receipts/) --
-        # generate a fresh one.
-        path, rcp_id = _write_receipt_file(payment, member)
+        # generate a fresh one. _write_receipt_file handles the audit entry.
+        path, _rcp_id = _write_receipt_file(payment, member)
         if path is None:
             utils.pause()
             return
         print()
         _display_file(path)
         print(f"📄 Receipt saved: {path}")
-        utils.log_audit(
-            "Accountant", "GENERATE_RECEIPT",
-            f"{rcp_id} for {payment_id}",
-        )
     utils.pause()
 
 
