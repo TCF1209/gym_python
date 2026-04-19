@@ -26,8 +26,9 @@ entries from utils):
   - {Role} | LOGOUT | {username}
 """
 
-import utils
+import admin
 import seed_data
+import utils
 
 
 # ============================================================
@@ -192,29 +193,29 @@ def _ask_menu_choice(options):
 # --- Administrator -----------------------------------------------
 
 ADMIN_OPTIONS = [
-    ("1", "Manage Classes"),
-    ("2", "Manage Trainers"),
-    ("3", "View All Members"),
-    ("4", "View All Bookings"),
-    ("5", "View All Payments"),
-    ("6", "System Report"),
-    ("7", "Peak Hours Analytics [F6]"),
-    ("8", "Analytics Dashboard [F9]"),
-    ("9", "Logout"),
+    ("1",  "Manage Classes"),
+    ("2",  "Manage Trainers"),
+    ("3",  "View All Members"),
+    ("4",  "View All Bookings"),
+    ("5",  "View All Payments"),
+    ("6",  "System Report"),
+    ("7",  "Peak Hours Analytics [F6]"),
+    ("8",  "Analytics Dashboard [F9]"),
+    ("9",  "View Audit Log [F7]"),
+    ("10", "Logout"),
 ]
 
 
 def run_admin_session(username):
-    """Administrator menu loop. Full logic moves to admin.py later."""
+    """Administrator menu loop. Delegates each choice to admin.handle_choice."""
     while True:
         _display_role_menu("ADMINISTRATOR DASHBOARD", username, ADMIN_OPTIONS)
         choice = _ask_menu_choice(ADMIN_OPTIONS)
-        if choice == "9":
+        if choice == "10":
             utils.log_audit("Administrator", "LOGOUT", username)
             print("\n✓ Logged out.")
             return
-        print(f"\n{PLACEHOLDER_LINE}")
-        utils.pause()
+        admin.handle_choice(choice, username)
 
 
 # --- Booking Officer ---------------------------------------------
