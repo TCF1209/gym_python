@@ -48,6 +48,11 @@ CANCELLATION_WINDOW_HOURS = 24
 # A member is auto-suspended when: expiry_date + SUSPENSION_GRACE_DAYS < today AND status == "Active"
 SUSPENSION_GRACE_DAYS = 7
 
+# Days-ahead threshold for "near expiry" warnings (System Report, Booking
+# Officer alerts). Independent of SUSPENSION_GRACE_DAYS so the two concepts
+# can drift apart later if needed.
+NEAR_EXPIRY_WARN_DAYS = 7
+
 # --- Class capacities (fixed per class type) ---
 CLASS_CAPACITY = {
     "Yoga": 15,
@@ -826,6 +831,40 @@ def print_header(title, width=MENU_WIDTH):
     print(f"╚{'═' * width}╝")
 
 
+def print_section_header(emoji, title, width=60):
+    """Emoji-tagged section header with a horizontal underline. Used in role views and reports."""
+    print()
+    print(f"{emoji} {title}")
+    print("─" * width)
+
+
+def format_table_row(widths, values):
+    """
+    Format one table row so each value sits in a fixed-width column.
+    Values longer than the column width are truncated with a Unicode
+    ellipsis (…) so the overall layout never shifts.
+    """
+    parts = []
+    for i in range(len(widths)):
+        w = widths[i]
+        s = str(values[i])
+        if len(s) > w:
+            s = s[:w - 1] + "…"
+        parts.append(s.ljust(w))
+    return "  ".join(parts)
+
+
+def print_table(headers, widths, rows):
+    """Print a simple header / underline / rows table with consistent column widths."""
+    print(format_table_row(widths, headers))
+    underline = []
+    for w in widths:
+        underline.append("-" * w)
+    print(format_table_row(widths, underline))
+    for row in rows:
+        print(format_table_row(widths, row))
+
+
 def render_ascii_bar(label, value, max_value, bar_width=BAR_WIDTH_DEFAULT, char=BAR_CHAR):
     """
     Render one row of an ASCII bar chart.
@@ -1044,6 +1083,51 @@ def auto_suspend_expired_members(acting_role="System"):
     if changed:
         write_members(members)
     return suspended_ids
+
+
+def auto_complete_past_classes(acting_role="System"):
+    """
+    Called at login, BEFORE auto_mark_no_shows.
+
+    Flip every Scheduled class whose end datetime (schedule_date + start_time
+    + duration_min) has already passed to status 'Completed'. Log an audit
+    entry per class.
+
+    Runs first in the login pipeline so that auto_mark_no_shows sees a fresh
+    class-status picture when it looks for stale Confirmed bookings.
+
+    Returns the list of class IDs that flipped.
+    """
+    classes = read_classes()
+    now = datetime.now()
+    affected = []
+    changed = False
+
+    for c in classes:
+        if c["status"] != "Scheduled":
+            continue
+        try:
+            start = datetime.strptime(
+                f"{c['schedule_date']} {c['start_time']}",
+                "%Y-%m-%d %H:%M",
+            )
+        except ValueError:
+            # Bad stored date/time; skip without mutating.
+            continue
+        end = start + timedelta(minutes=c["duration_min"])
+        if end < now:
+            c["status"] = "Completed"
+            affected.append(c["id"])
+            changed = True
+            log_audit(
+                acting_role,
+                "AUTO_COMPLETE_CLASS",
+                f"{c['id']} marked Completed (ended {end.strftime(DATETIME_FORMAT)})",
+            )
+
+    if changed:
+        write_classes(classes)
+    return affected
 
 
 def auto_mark_no_shows(acting_role="System"):

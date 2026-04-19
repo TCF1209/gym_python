@@ -27,6 +27,7 @@ entries from utils):
 """
 
 import admin
+import booking
 import seed_data
 import utils
 
@@ -125,11 +126,20 @@ def login():
 
 def run_post_login_tasks():
     """
-    Run auto_mark_no_shows, then auto_suspend_expired_members.
-    Print the combined summary per product decision:
-      - ✓ System ready.   (when both counts are zero)
-      - ⚠️  ...            (otherwise, only non-zero parts shown)
+    Run the login-time auto-tasks in order:
+      1. auto_complete_past_classes  -- flips Scheduled -> Completed for
+         classes whose end time has passed (silent housekeeping).
+      2. auto_mark_no_shows          -- flips Confirmed -> No-Show for
+         bookings on past classes; creates Pending penalty payments.
+      3. auto_suspend_expired_members -- flips Active -> Suspended for
+         members past the grace window.
+
+    Print the combined user-facing summary. Only no-show and suspend
+    counts are surfaced -- class completions are silent and captured
+    in the audit log instead (not something a staff user needs pinged
+    about on every login).
     """
+    utils.auto_complete_past_classes("System")
     affected_no_show = utils.auto_mark_no_shows("System")
     affected_suspend = utils.auto_suspend_expired_members("System")
 
@@ -232,7 +242,7 @@ BOOKING_OPTIONS = [
 
 
 def run_booking_session(username):
-    """Booking Officer menu loop. Full logic moves to booking.py later."""
+    """Booking Officer menu loop. Delegates each choice to booking.handle_choice."""
     while True:
         _display_role_menu("BOOKING OFFICER DASHBOARD", username, BOOKING_OPTIONS)
         choice = _ask_menu_choice(BOOKING_OPTIONS)
@@ -240,8 +250,7 @@ def run_booking_session(username):
             utils.log_audit("BookingOfficer", "LOGOUT", username)
             print("\n✓ Logged out.")
             return
-        print(f"\n{PLACEHOLDER_LINE}")
-        utils.pause()
+        booking.handle_choice(choice, username)
 
 
 # --- Accountant --------------------------------------------------

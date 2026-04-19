@@ -70,15 +70,9 @@ def _placeholder(feature_name):
 # ============================================================
 
 # Section-header width must be wide enough for the System Report banner
-# without wrapping on a standard 80-column terminal.
+# without wrapping on a standard 80-column terminal. Shared with every
+# utils.print_section_header call in this module.
 SECTION_WIDTH = 60
-
-
-def _print_section_header(emoji, title):
-    """Emoji-tagged section header with an underline -- used in reports."""
-    print()
-    print(f"{emoji} {title}")
-    print("─" * SECTION_WIDTH)
 
 
 def _print_sub_menu(title, options):
@@ -96,33 +90,6 @@ def _ask_option(options):
         valid_nums.append(num)
     prompt = f"  Enter choice [{valid_nums[0]}-{valid_nums[-1]}]: "
     return utils.get_valid_menu_choice(prompt, valid_nums)
-
-
-def _format_row(widths, values):
-    """
-    Format one table row so each value sits in a fixed-width column.
-    Values longer than the column width are truncated with a Unicode
-    ellipsis so the overall layout never shifts.
-    """
-    parts = []
-    for i in range(len(widths)):
-        w = widths[i]
-        s = str(values[i])
-        if len(s) > w:
-            s = s[:w - 1] + "…"
-        parts.append(s.ljust(w))
-    return "  ".join(parts)
-
-
-def _print_table(headers, widths, rows):
-    """Print a simple header/underline/rows table with consistent columns."""
-    print(_format_row(widths, headers))
-    underline = []
-    for w in widths:
-        underline.append("-" * w)
-    print(_format_row(widths, underline))
-    for row in rows:
-        print(_format_row(widths, row))
 
 
 # ============================================================
@@ -369,7 +336,7 @@ def _view_all_classes():
         print("\nℹ️  No classes on file.")
         utils.pause()
         return
-    _print_section_header("🏋️", f"ALL CLASSES ({len(classes)})")
+    utils.print_section_header("🏋️", f"ALL CLASSES ({len(classes)})", SECTION_WIDTH)
     headers = ["ID",    "Name",   "Trainer", "Date",       "Time",  "Booked", "Cap", "Status"]
     widths =  [6,       10,       7,         12,           6,       6,        4,     10]
     rows = []
@@ -379,7 +346,7 @@ def _view_all_classes():
             c["schedule_date"], c["start_time"],
             c["current_booked"], c["capacity"], c["status"],
         ])
-    _print_table(headers, widths, rows)
+    utils.print_table(headers, widths, rows)
     utils.pause()
 
 
@@ -586,7 +553,7 @@ def _view_all_trainers():
         print("\nℹ️  No trainers on file.")
         utils.pause()
         return
-    _print_section_header("🧑‍🏫", f"ALL TRAINERS ({len(trainers)})")
+    utils.print_section_header("🧑‍🏫", f"ALL TRAINERS ({len(trainers)})", SECTION_WIDTH)
     headers = ["ID",    "Name",   "Specialization", "Phone",     "Email",              "Exp", "Status"]
     widths =  [6,       18,       14,               12,          24,                   4,     10]
     rows = []
@@ -596,7 +563,7 @@ def _view_all_trainers():
             t["phone"], t["email"],
             t["experience_years"], t["status"],
         ])
-    _print_table(headers, widths, rows)
+    utils.print_table(headers, widths, rows)
     utils.pause()
 
 
@@ -610,7 +577,7 @@ def view_all_members():
         print("\nℹ️  No members on file.")
         utils.pause()
         return
-    _print_section_header("👥", f"ALL MEMBERS ({len(members)})")
+    utils.print_section_header("👥", f"ALL MEMBERS ({len(members)})", SECTION_WIDTH)
     headers = ["ID",    "Name",   "Age", "G", "Tier",   "Phone",      "Expiry",     "Status"]
     widths =  [6,       18,       4,     3,   8,        12,           12,           10]
     rows = []
@@ -620,7 +587,7 @@ def view_all_members():
             m["tier"], m["phone"],
             m["expiry_date"], m["status"],
         ])
-    _print_table(headers, widths, rows)
+    utils.print_table(headers, widths, rows)
     utils.pause()
 
 
@@ -630,7 +597,7 @@ def view_all_bookings():
         print("\nℹ️  No bookings on file.")
         utils.pause()
         return
-    _print_section_header("📋", f"ALL BOOKINGS ({len(bookings)})")
+    utils.print_section_header("📋", f"ALL BOOKINGS ({len(bookings)})", SECTION_WIDTH)
     headers = ["Booking ID",    "Member", "Class", "Booked",     "Class Date", "Status",   "Penalty"]
     widths =  [14,              7,        6,       12,           12,           10,         10]
     rows = []
@@ -640,7 +607,7 @@ def view_all_bookings():
             b["booking_date"], b["class_date"],
             b["status"], utils.format_currency(b["penalty_rm"]),
         ])
-    _print_table(headers, widths, rows)
+    utils.print_table(headers, widths, rows)
     utils.pause()
 
 
@@ -650,7 +617,7 @@ def view_all_payments():
         print("\nℹ️  No payments on file.")
         utils.pause()
         return
-    _print_section_header("💰", f"ALL PAYMENTS ({len(payments)})")
+    utils.print_section_header("💰", f"ALL PAYMENTS ({len(payments)})", SECTION_WIDTH)
     headers = ["ID",    "Member", "Amount",     "Type",       "Method", "Date",       "Status",  "Reference"]
     widths =  [6,       7,        10,           12,           7,        12,           8,         16]
     rows = []
@@ -663,7 +630,7 @@ def view_all_payments():
             p["payment_type"], method_display,
             p["payment_date"], p["status"], ref_display,
         ])
-    _print_table(headers, widths, rows)
+    utils.print_table(headers, widths, rows)
     utils.pause()
 
 
@@ -705,7 +672,7 @@ def _print_report_banner():
 
 def _report_membership(members):
     """Membership totals by tier and by status."""
-    _print_section_header("👥", "MEMBERSHIP OVERVIEW")
+    utils.print_section_header("👥", "MEMBERSHIP OVERVIEW", SECTION_WIDTH)
     tier_counts = {"Basic": 0, "Premium": 0, "VIP": 0}
     status_counts = {"Active": 0, "Expired": 0, "Suspended": 0}
     for m in members:
@@ -722,7 +689,7 @@ def _report_membership(members):
 
 def _report_classes(classes):
     """Class totals by type, by status, plus overall capacity utilisation."""
-    _print_section_header("🏋️", "CLASS OVERVIEW")
+    utils.print_section_header("🏋️", "CLASS OVERVIEW", SECTION_WIDTH)
     type_counts = {}
     status_counts = {"Scheduled": 0, "Completed": 0, "Cancelled": 0}
     total_capacity = 0
@@ -753,7 +720,7 @@ def _report_classes(classes):
 
 def _report_bookings(bookings):
     """Booking totals by status."""
-    _print_section_header("📋", "BOOKING OVERVIEW")
+    utils.print_section_header("📋", "BOOKING OVERVIEW", SECTION_WIDTH)
     status_counts = {"Confirmed": 0, "Completed": 0, "Cancelled": 0, "No-Show": 0}
     for b in bookings:
         if b["status"] in status_counts:
@@ -767,7 +734,7 @@ def _report_bookings(bookings):
 
 def _report_revenue(payments):
     """Revenue split by payment type and status."""
-    _print_section_header("💰", "REVENUE OVERVIEW")
+    utils.print_section_header("💰", "REVENUE OVERVIEW", SECTION_WIDTH)
     paid_mem = 0.0
     pending_mem = 0.0
     paid_pen = 0.0
@@ -798,7 +765,7 @@ def _report_revenue(payments):
 
 def _report_system_health(members, payments, audit_entries):
     """Operational signals: audit volume, pending payments, near-expiry, data files present."""
-    _print_section_header("🩺", "SYSTEM HEALTH")
+    utils.print_section_header("🩺", "SYSTEM HEALTH", SECTION_WIDTH)
     print(f"  Audit log entries:   {len(audit_entries)}")
     pending_count = 0
     for p in payments:
@@ -816,10 +783,10 @@ def _report_system_health(members, payments, audit_entries):
         except ValueError:
             continue
         days_left = (exp - today).days
-        if 0 <= days_left <= 7:
+        if 0 <= days_left <= utils.NEAR_EXPIRY_WARN_DAYS:
             near_expiry += 1
     print(f"  Near-expiry alerts:  {near_expiry}  "
-          f"(Active members expiring within 7 days)")
+          f"(Active members expiring within {utils.NEAR_EXPIRY_WARN_DAYS} days)")
 
     data_files = [
         utils.MEMBERS_FILE, utils.CLASSES_FILE, utils.TRAINERS_FILE,
